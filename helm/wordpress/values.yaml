@@ -24,8 +24,8 @@ nginx:
       configMap: 
         name: php-fpm-config
     - name: wp-content
-      persistentVolumeClaim:
-        claimName: wordpress-pvc
+      # persistentVolumeClaim:
+      #   claimName: wordpress-pvc
   extraVolumeMounts:
     - name: php-fpm-config
       mountPath: /usr/local/etc/php-fpm.conf
