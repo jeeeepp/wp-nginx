@@ -1,0 +1,9 @@
+dependencies:
+- name: mysql
+  repository: https://charts.bitnami.com/bitnami
+  version: 11.1.14
+- name: nginx
+  repository: https://charts.bitnami.com/bitnami
+  version: 18.1.11
+digest: sha256:b3f943002bea6df203b8fc8e2b225663456c8d98696426c90ba0f995ef114d0a
+generated: "2024-09-02T14:56:04.077263+07:00"

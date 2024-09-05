@@ -1,0 +1,112 @@
+mysql:
+  enable: true
+  auth:
+    rootPassword: "admin"
+    createDatabase: true
+    database: "mysql-wp"
+    username: "admin"
+    password: "admin"
+    # Password ควรเก็บใน secrect / vault ใช้เพื่อเทส
+nginx:
+  enable: true
+  readinessProbe:
+    enabled: false
+  livenessProbe:
+    enabled: false
+  image:
+    repository: bitnami/nginx
+    tag: 1.26
+    debug: true
+  service:
+    type: ClusterIP
+  extraVolumes:
+    - name: php-fpm-config
+      configMap: 
+        name: php-fpm-config
+    - name: wp-content
+      persistentVolumeClaim:
+        claimName: wordpress-pvc
+  extraVolumeMounts:
+    - name: php-fpm-config
+      mountPath: /usr/local/etc/php-fpm.conf
+      subPath: php-fpm.conf
+    - name: wp-content
+      mountPath: /opt/bitnami/nginx/html/
+  serverBlock: |-
+    server {
+        listen 8080 default_server;
+        listen [::]:8080 default_server;
+
+        access_log /opt/bitnami/nginx/logs/access.log;
+        error_log  /opt/bitnami/nginx/logs/error.log;
+
+        root /opt/bitnami/nginx/html/;
+
+        index index.php;
+
+        server_name domain.com www.domain.com;
+
+        location / {
+            try_files $uri $uri/ /index.php?$args;
+        }
+
+        location ~ \.php$ {
+            fastcgi_pass localhost:9000;
+            fastcgi_index index.php;
+            fastcgi_param SCRIPT_FILENAME $request_filename;
+            include /opt/bitnami/nginx/conf/fastcgi_params;
+            # include /etc/nginx/fastcgi_params;
+            # Uncomment the following lines if you want to use fastcgi_cache
+            # fastcgi_cache microcache;
+            # fastcgi_cache_key $scheme$host$request_uri$request_method;
+            # fastcgi_cache_valid 200 301 302 30s;
+            # fastcgi_cache_use_stale updating error timeout invalid_header http_500;
+        }
+    }
+  sidecars:
+    - name: wordpress-fpm
+      image: wordpress:php8.2-fpm
+      imagePullPolicy: Always
+      ports:
+        - name: http
+          containerPort: 9000
+      env:
+        - name: DB_HOST
+          value: wordpress-mysql
+        - name: DB_NAME
+          value: mysql-wp
+        - name: DB_USER
+          value: root
+        - name: DB_PASSWORD
+          value: admin
+    # Additional volumeMounts on the output Deployment definition.
+      volumeMounts:
+        - name: php-fpm-config
+          mountPath: /usr/local/etc/php-fpm.conf
+          subPath: php-fpm.conf
+        - name: php-fpm-config
+          mountPath: /usr/local/etc/php/php.ini-development
+          subPath: php.ini
+        - name: wp-content
+          mountPath: /opt/bitnami/nginx/html/
+
+  initContainers:
+    - name: download-wordpress
+      image: nginx
+      imagePullPolicy: Always
+      ports:
+        - name: http
+          containerPort: 80
+      command:
+        - sh
+        - -c
+        - >
+          mkdir -p /download &&
+          curl -o /tmp/wordpress.tar.gz https://wordpress.org/latest.tar.gz &&
+          tar xfvz /tmp/wordpress.tar.gz -C /download --strip-components=1 && chown -R 1001:1001 /download  &&
+          chmod 775 /download 
+      volumeMounts:
+        - name: wp-content
+          mountPath: /download
+          
+
